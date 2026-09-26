@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WEBORA — Créer mon site</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#FAFAF9; --line:#E2E1DC; --ink:#17223B; --ink-soft:#5B6478; --accent:#1F7A5C; --accent-dark:#175E46; }
+  *{box-sizing:border-box;} body{margin:0; font-family:'Inter',sans-serif; background:var(--bg); color:var(--ink); padding:48px 20px 100px;}
+  .wrap{max-width:640px; margin:0 auto;}
+  h1{font-family:'Sora',sans-serif; font-size:1.8rem; margin-bottom:8px;}
+  p.lede{color:var(--ink-soft); margin-bottom:36px;}
+  fieldset{border:1px solid var(--line); border-radius:10px; padding:22px 24px; margin-bottom:24px;}
+  legend{font-family:'Sora',sans-serif; font-weight:600; padding:0 8px; font-size:0.95rem;}
+  label{display:block; font-size:0.88rem; font-weight:500; margin:14px 0 6px;}
+  label:first-of-type{margin-top:0;}
+  input, textarea{
+    width:100%; padding:11px 14px; border:1px solid var(--line); border-radius:6px;
+    font-family:inherit; font-size:0.95rem; background:#fff;
+  }
+  textarea{resize:vertical; min-height:70px;}
+  .product-row{display:grid; grid-template-columns:1fr 110px auto; gap:10px; margin-bottom:10px; align-items:center;}
+  .btn-add{background:none; border:1px dashed var(--ink-soft); color:var(--ink-soft); padding:10px; border-radius:6px; width:100%; font-size:0.88rem;}
+  .btn-remove{background:none; color:#B4482F; font-size:1.2rem; border:none; cursor:pointer;}
+  .btn-submit{
+    width:100%; background:var(--accent); color:#fff; font-weight:600; font-size:1rem;
+    padding:16px; border-radius:8px; border:none; cursor:pointer; margin-top:8px;
+  }
+  .btn-submit:hover{background:var(--accent-dark);}
+  .result{
+    margin-top:28px; padding:20px 22px; border-radius:10px; background:#1F7A5C14;
+    border:1px solid var(--accent); display:none;
+  }
+  .result a{color:var(--accent-dark); font-weight:600;}
+  .result.show{display:block;}
+  .error{color:#B4482F; font-size:0.9rem; margin-top:10px; display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Créer mon site — Boutique</h1>
+  <p class="lede">Remplissez vos informations. Votre site sera généré et publié automatiquement à partir de ce modèle.</p>
+
+  <form id="siteForm">
+    <fieldset>
+      <legend>Informations générales</legend>
+      <label>Adresse de votre site (slug)</label>
+      <input type="text" id="slug" placeholder="ex: kedassa-bazar" pattern="[a-z0-9\-]+" required>
+      <label>Nom de l'entreprise</label>
+      <input type="text" id="business_name" required>
+      <label>Description courte (une phrase, affichée en grand)</label>
+      <textarea id="description" required></textarea>
+      <label>Message de la bannière du haut</label>
+      <input type="text" id="tagline" placeholder="ex: Livraison gratuite à partir de 3 500 HTG">
+    </fieldset>
+
+    <fieldset>
+      <legend>Contact</legend>
+      <label>Téléphone</label>
+      <input type="text" id="phone">
+      <label>WhatsApp</label>
+      <input type="text" id="whatsapp">
+      <label>Adresse</label>
+      <input type="text" id="address">
+    </fieldset>
+
+    <fieldset>
+      <legend>Produits</legend>
+      <div id="productsList"></div>
+      <button type="button" class="btn-add" onclick="addProductRow()">+ Ajouter un produit</button>
+    </fieldset>
+
+    <button type="submit" class="btn-submit">Publier mon site</button>
+    <div class="error" id="errorBox"></div>
+  </form>
+
+  <div class="result" id="result">
+    <strong>Votre site est en ligne.</strong><br>
+    <a id="resultLink" href="#" target="_blank"></a>
+  </div>
+</div>
+
+<script>
+  function addProductRow(name = '', price = '', category = ''){
+    const row = document.createElement('div');
+    row.className = 'product-row';
+    row.innerHTML = `
+      <input type="text" placeholder="Nom du produit" class="p-name" value="${name}">
+      <input type="text" placeholder="Prix (HTG)" class="p-price" value="${price}">
+      <button type="button" class="btn-remove" onclick="this.parentElement.remove()">×</button>
+    `;
+    document.getElementById('productsList').appendChild(row);
+  }
+  addProductRow(); addProductRow(); addProductRow();
+
+  document.getElementById('siteForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorBox = document.getElementById('errorBox');
+    errorBox.style.display = 'none';
+
+    const products = [...document.querySelectorAll('.product-row')].map(row => ({
+      name: row.querySelector('.p-name').value.trim(),
+      price: row.querySelector('.p-price').value.trim()
+    })).filter(p => p.name && p.price);
+
+    const payload = {
+      slug: document.getElementById('slug').value.trim(),
+      business_name: document.getElementById('business_name').value.trim(),
+      description: document.getElementById('description').value.trim(),
+      tagline: document.getElementById('tagline').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      whatsapp: document.getElementById('whatsapp').value.trim(),
+      address: document.getElementById('address').value.trim(),
+      products
+    };
+
+    try {
+      const res = await fetch('/api/sites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || 'Erreur inconnue');
+
+      const link = document.getElementById('resultLink');
+      link.href = data.url;
+      link.textContent = window.location.origin + data.url;
+      document.getElementById('result').classList.add('show');
+    } catch(err){
+      errorBox.textContent = err.message;
+      errorBox.style.display = 'block';
+    }
+  });
+</script>
+</body>
+</html>
